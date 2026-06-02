@@ -9,6 +9,7 @@ export default function Home() {
   const [fileName, setFileName] = useState('');
   const [dlUrl, setDlUrl] = useState('');
   const [dlName, setDlName] = useState('');
+  const [preview, setPreview] = useState([]);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef(null);
 
@@ -24,6 +25,7 @@ export default function Home() {
 
   const reset = () => {
     setState('idle'); setRowCount(0); setErrorMsg(''); setFileName('');
+    setPreview([]);
     if (dlUrl) URL.revokeObjectURL(dlUrl);
     setDlUrl(''); setDlName('');
     if (inputRef.current) inputRef.current.value = '';
@@ -33,9 +35,10 @@ export default function Home() {
     const rows = [];
     const seen = new Set();
     const flat = text.replace(/\s+/g, ' ').trim();
+    const JA = '[\\u3000-\\u9FFF\\uFF00-\\uFFEF\\uFFA0-\\uFFDCA-Za-z0-9()（）・\\-\\/,，．.？?！!]+';
+    const UNIT = '(?:式|㎡|ヶ|台|本|枚|ｹ|ケ)';
 
-    // 数量ありパターン：番号 場所 箇所 工事項目 数量 単位
-    const p1 = /\b(\d{1,2})\s+([\u3000-\u9FFFﾀ-ﾟA-Za-z()（）・\-]+)\s+([\u3000-\u9FFFﾀ-ﾟA-Za-z()（）・\-\/]+)\s+([\u3000-\u9FFFﾀ-ﾟA-Za-z()（）・\-\/,？\?]+?)\s+([\d.]+)\s*(式|㎡|ヶ|台|本|枚|ｹ|ケ)/g;
+    const p1 = new RegExp(`\\b(\\d{1,2})\\s+(${JA})\\s+(${JA})\\s+(${JA}?)\\s+([\\d.]+)\\s*(${UNIT})`, 'g');
     let m;
     while ((m = p1.exec(flat)) !== null) {
       const no = parseInt(m[1]);
@@ -48,8 +51,7 @@ export default function Home() {
       rows.push({ no, basho: m[2], kasho: m[3], koji: m[4], suryo: parseFloat(m[5]), tani: m[6], tanka });
     }
 
-    // 数量なしパターン：番号 場所 箇所 工事項目 単位
-    const p2 = /\b(\d{1,2})\s+([\u3000-\u9FFFﾀ-ﾟA-Za-z()（）・\-]+)\s+([\u3000-\u9FFFﾀ-ﾟA-Za-z()（）・\-\/]+)\s+([\u3000-\u9FFFﾀ-ﾟA-Za-z()（）・\-\/,？\?]+?)\s+(式|㎡|ヶ|台|本|枚|ｹ|ケ)/g;
+    const p2 = new RegExp(`\\b(\\d{1,2})\\s+(${JA})\\s+(${JA})\\s+(${JA}?)\\s*(${UNIT})`, 'g');
     while ((m = p2.exec(flat)) !== null) {
       const no = parseInt(m[1]);
       if (no < 1 || no > 100 || seen.has(no)) continue;
@@ -97,7 +99,7 @@ export default function Home() {
     setState('uploading');
     try {
       const pdfjsLib = window.pdfjsLib;
-      if (!pdfjsLib) throw new Error('PDF読み込みライブラリが準備中です。少し待ってから再度お試しください。');
+      if (!pdfjsLib) throw new Error('PDF読み込みライブラリが準備中です。少し待ってから再試行してください。');
       const ab = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
       let allText = '';
@@ -109,6 +111,7 @@ export default function Home() {
       const rows = parseEstimateRows(allText);
       if (!rows.length) throw new Error('見積データが抽出できませんでした');
       setRowCount(rows.length);
+      setPreview(rows.slice(0, 10));
       const res = await fetch('/api/template');
       const { b64 } = await res.json();
       const xlsxData = buildExcel(rows, b64);
@@ -129,7 +132,7 @@ export default function Home() {
       <style>{`
         *{box-sizing:border-box;margin:0;padding:0}
         body{font-family:'Hiragino Sans','Meiryo',sans-serif;background:#f5f5f0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem}
-        .card{background:#fff;border-radius:16px;box-shadow:0 2px 24px rgba(0,0,0,0.08);padding:2.5rem 2rem;width:100%;max-width:520px}
+        .card{background:#fff;border-radius:16px;box-shadow:0 2px 24px rgba(0,0,0,0.08);padding:2.5rem 2rem;width:100%;max-width:640px}
         .drop{border:2px dashed #d0d0d0;border-radius:12px;padding:2.5rem 1.5rem;text-align:center;cursor:pointer;transition:all 0.15s;background:#fafaf8}
         .drop.over,.drop:hover{border-color:#3b7dd8;background:#eff5ff}
         input[type=file]{display:none}
@@ -139,6 +142,10 @@ export default function Home() {
         .dot{width:18px;height:18px;border-radius:50%;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px}
         .spin{width:18px;height:18px;border:2px solid #ccc;border-top-color:#3b7dd8;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
         @keyframes spin{to{transform:rotate(360deg)}}
+        .preview{width:100%;border-collapse:collapse;font-size:12px;margin-top:1rem}
+        .preview th{background:#f0f0ee;padding:5px 8px;text-align:left;border:0.5px solid #ddd;font-weight:500;color:#555}
+        .preview td{padding:4px 8px;border:0.5px solid #ddd;color:#333}
+        .preview tr:nth-child(even) td{background:#fafaf8}
         .dl-btn{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:1.25rem;width:100%;padding:.85rem;background:#1a6fd4;color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer;text-decoration:none}
         .dl-btn:hover{background:#145bb0}
         .reset{display:block;margin:.75rem auto 0;background:none;border:none;color:#aaa;font-size:.82rem;cursor:pointer}
@@ -147,6 +154,7 @@ export default function Home() {
       <div className="card">
         <p style={{fontSize:'1.25rem',fontWeight:700,marginBottom:'.25rem'}}>見積PDF → エクセル変換</p>
         <p style={{fontSize:'.85rem',color:'#888',marginBottom:'1.75rem'}}>PDFをアップロードするだけでＡＡ原紙フォーマットに自動変換</p>
+
         {state === 'idle' && (
           <div className={`drop${dragging?' over':''}`}
             onDragOver={e=>{e.preventDefault();setDragging(true)}}
@@ -159,6 +167,7 @@ export default function Home() {
             <p style={{fontSize:'.82rem',color:'#aaa',marginTop:'.25rem'}}>またはクリックして選択</p>
           </div>
         )}
+
         {(state==='uploading'||state==='done') && (
           <div className="status">
             <div className="srow done"><div className="dot">✓</div><span>{fileName} を読み込みました</span></div>
@@ -168,12 +177,40 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        {state==='done' && preview.length > 0 && (
+          <>
+            <p style={{fontSize:'12px',color:'#888',marginTop:'1rem',marginBottom:'4px'}}>抽出データプレビュー（先頭10件）</p>
+            <div style={{overflowX:'auto'}}>
+              <table className="preview">
+                <thead><tr>
+                  <th>No</th><th>場所</th><th>箇所</th><th>工事項目</th><th>数量</th><th>単位</th><th>単価</th>
+                </tr></thead>
+                <tbody>
+                  {preview.map(r => (
+                    <tr key={r.no}>
+                      <td>{r.no}</td>
+                      <td>{r.basho}</td>
+                      <td>{r.kasho}</td>
+                      <td>{r.koji}</td>
+                      <td>{r.suryo ?? ''}</td>
+                      <td>{r.tani}</td>
+                      <td>{r.tanka != null ? r.tanka.toLocaleString() : ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
         {state==='done' && dlUrl && (
           <>
             <a className="dl-btn" href={dlUrl} download={dlName}>⬇ エクセルをダウンロード</a>
             <button className="reset" onClick={reset}>別のPDFを変換する</button>
           </>
         )}
+
         {state==='error' && (
           <>
             <div className="err">⚠ {errorMsg}</div>
