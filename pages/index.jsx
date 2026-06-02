@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
 import * as XLSX from 'xlsx';
 
@@ -12,16 +12,20 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef(null);
 
-  const TEMPLATE_B64 = process.env.NEXT_PUBLIC_TEMPLATE_B64;
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    };
+    document.head.appendChild(script);
+  }, []);
 
   const reset = () => {
-    setState('idle');
-    setRowCount(0);
-    setErrorMsg('');
-    setFileName('');
+    setState('idle'); setRowCount(0); setErrorMsg(''); setFileName('');
     if (dlUrl) URL.revokeObjectURL(dlUrl);
-    setDlUrl('');
-    setDlName('');
+    setDlUrl(''); setDlName('');
     if (inputRef.current) inputRef.current.value = '';
   };
 
@@ -106,8 +110,8 @@ export default function Home() {
     setFileName(file.name);
     setState('uploading');
     try {
-      const pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.mjs');
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.mjs';
+      const pdfjsLib = window.pdfjsLib;
+      if (!pdfjsLib) throw new Error('PDF読み込みライブラリが準備中です。少し待ってから再度お試しください。');
       const ab = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
       let allText = '';
@@ -117,7 +121,7 @@ export default function Home() {
         allText += tc.items.map(x => x.str).join(' ') + '\f';
       }
       const rows = parseEstimateRows(allText);
-      if (!rows.length) throw new Error('見積データが抽出できませんでした');
+      if (!rows.length) throw new Error('見積データが抽出できませんでした。PDFの形式をご確認ください。');
       setRowCount(rows.length);
       const res = await fetch('/api/template');
       const { b64 } = await res.json();
@@ -144,8 +148,8 @@ export default function Home() {
         .drop.over,.drop:hover{border-color:#3b7dd8;background:#eff5ff}
         input[type=file]{display:none}
         .status{margin-top:1.25rem;background:#f7f7f5;border-radius:10px;padding:1rem 1.25rem}
-        .row{display:flex;align-items:center;gap:.6rem;font-size:.9rem;color:#555;padding:.3rem 0}
-        .row.done{color:#2a7a2a}.row.active{color:#1a1a1a;font-weight:600}
+        .srow{display:flex;align-items:center;gap:.6rem;font-size:.9rem;color:#555;padding:.3rem 0}
+        .srow.done{color:#2a7a2a}.srow.active{color:#1a1a1a;font-weight:600}
         .dot{width:18px;height:18px;border-radius:50%;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px}
         .spin{width:18px;height:18px;border:2px solid #ccc;border-top-color:#3b7dd8;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
         @keyframes spin{to{transform:rotate(360deg)}}
@@ -171,8 +175,8 @@ export default function Home() {
         )}
         {(state==='uploading'||state==='done') && (
           <div className="status">
-            <div className={`row done`}><div className="dot">✓</div><span>{fileName} を読み込みました</span></div>
-            <div className={`row ${state==='uploading'?'active':'done'}`}>
+            <div className="srow done"><div className="dot">✓</div><span>{fileName} を読み込みました</span></div>
+            <div className={`srow ${state==='uploading'?'active':'done'}`}>
               {state==='uploading'?<div className="spin"/>:<div className="dot">✓</div>}
               <span>{state==='uploading'?'解析・変換中...':`${rowCount}件抽出しました`}</span>
             </div>
