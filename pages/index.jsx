@@ -67,7 +67,7 @@ export default function Home() {
         if (!basho) continue;
         pageRows.push({ no: noVal, basho, kasho, koji, suryo, tani, tanka });
       }
-      if (pageRows.length >= 3) allRows.push(...pageRows);
+      allRows.push(...pageRows);
     }
     const seen = new Set();
     return allRows.filter(r => { if (seen.has(r.no)) return false; seen.add(r.no); return true; })
