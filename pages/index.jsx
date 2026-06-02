@@ -121,7 +121,7 @@ export default function Home() {
         allText += tc.items.map(x => x.str).join(' ') + '\f';
       }
       const rows = parseEstimateRows(allText);
-      if (!rows.length) throw new Error('見積データが抽出できませんでした。PDFの形式をご確認ください。');
+      if (!rows.length) throw new Error('テキスト取得結果: ' + allText.slice(0, 300));
       setRowCount(rows.length);
       const res = await fetch('/api/template');
       const { b64 } = await res.json();
