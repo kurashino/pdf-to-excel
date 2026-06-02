@@ -139,13 +139,16 @@ export default function Home() {
         )}
 
         {state === 'done' && dlUrl && (
-          <>
-            <a className="dl-btn" href={dlUrl} download={dlName}>
-              ⬇ エクセルをダウンロード
-            </a>
-            <button className="reset" onClick={reset}>別のPDFを変換する</button>
-          </>
-        )}
+  <>
+    <div style={{marginTop:'1.25rem', background:'#f7f7f5', borderRadius:'10px', padding:'1rem', fontSize:'13px', color:'#555'}}>
+      ✓ {rowCount}件抽出完了。ダウンロードの準備ができました。
+    </div>
+    <a className="dl-btn" href={dlUrl} download={dlName} onClick={e => e.stopPropagation()}>
+      ⬇ エクセルをダウンロード
+    </a>
+    <button className="reset" onClick={reset}>別のPDFを変換する</button>
+  </>
+)}
 
         {state === 'error' && (
           <>
