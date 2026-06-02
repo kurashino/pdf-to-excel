@@ -30,48 +30,34 @@ export default function Home() {
   };
 
   const parseEstimateRows = (text) => {
-    const allRows = [];
-    const pages = text.split(/\f/);
-    for (const page of pages) {
-      const lines = page.split(/\n|\r/).map(l => l.trim()).filter(Boolean);
-      const pageRows = [];
-      for (const line of lines) {
-        const tokens = line.split(/\s+/);
-        if (tokens.length < 4) continue;
-        const noVal = parseInt(tokens[0]);
-        if (isNaN(noVal) || noVal < 1 || noVal > 100) continue;
-        if (['並順','場所','箇所','工事項目','NO','No'].includes(tokens[1])) continue;
-        const unitPattern = /^(式|㎡|ヶ|台|本|枚|ｹ|ケ|m2|m²)$/;
-        const numPattern = /^[\d,.]+$/;
-        const rest = tokens.slice(1);
-        let uIdx = -1;
-        for (let i = 0; i < rest.length; i++) {
-          if (unitPattern.test(rest[i])) { uIdx = i; break; }
-        }
-        let basho = '', kasho = '', koji = '', suryo = null, tani = '', tanka = null;
-        if (uIdx >= 0) {
-          tani = rest[uIdx];
-          if (uIdx > 0 && numPattern.test(rest[uIdx - 1])) {
-            suryo = parseFloat(rest[uIdx - 1].replace(/,/g, ''));
-            const before = rest.slice(0, uIdx - 1);
-            basho = before[0] || ''; kasho = before[1] || ''; koji = before.slice(2).join('');
-          } else {
-            const before = rest.slice(0, uIdx);
-            basho = before[0] || ''; kasho = before[1] || ''; koji = before.slice(2).join('');
-          }
-          const afterNums = rest.slice(uIdx + 1).filter(t => numPattern.test(t));
-          if (afterNums.length > 0) tanka = parseFloat(afterNums[0].replace(/,/g, ''));
-        } else {
-          basho = rest[0] || ''; kasho = rest[1] || ''; koji = rest.slice(2).join('');
-        }
-        if (!basho) continue;
-        pageRows.push({ no: noVal, basho, kasho, koji, suryo, tani, tanka });
-      }
-      allRows.push(...pageRows);
-    }
+    const rows = [];
     const seen = new Set();
-    return allRows.filter(r => { if (seen.has(r.no)) return false; seen.add(r.no); return true; })
-      .sort((a, b) => a.no - b.no);
+    const flat = text.replace(/\s+/g, ' ').trim();
+
+    // 数量ありパターン：番号 場所 箇所 工事項目 数量 単位
+    const p1 = /\b(\d{1,2})\s+([\u3000-\u9FFFﾀ-ﾟA-Za-z()（）・\-]+)\s+([\u3000-\u9FFFﾀ-ﾟA-Za-z()（）・\-\/]+)\s+([\u3000-\u9FFFﾀ-ﾟA-Za-z()（）・\-\/,？\?]+?)\s+([\d.]+)\s*(式|㎡|ヶ|台|本|枚|ｹ|ケ)/g;
+    let m;
+    while ((m = p1.exec(flat)) !== null) {
+      const no = parseInt(m[1]);
+      if (no < 1 || no > 100 || seen.has(no)) continue;
+      seen.add(no);
+      let tanka = null;
+      const after = flat.slice(m.index + m[0].length, m.index + m[0].length + 30);
+      const tm = after.match(/^\s*([\d,]+)/);
+      if (tm) tanka = parseFloat(tm[1].replace(/,/g, ''));
+      rows.push({ no, basho: m[2], kasho: m[3], koji: m[4], suryo: parseFloat(m[5]), tani: m[6], tanka });
+    }
+
+    // 数量なしパターン：番号 場所 箇所 工事項目 単位
+    const p2 = /\b(\d{1,2})\s+([\u3000-\u9FFFﾀ-ﾟA-Za-z()（）・\-]+)\s+([\u3000-\u9FFFﾀ-ﾟA-Za-z()（）・\-\/]+)\s+([\u3000-\u9FFFﾀ-ﾟA-Za-z()（）・\-\/,？\?]+?)\s+(式|㎡|ヶ|台|本|枚|ｹ|ケ)/g;
+    while ((m = p2.exec(flat)) !== null) {
+      const no = parseInt(m[1]);
+      if (no < 1 || no > 100 || seen.has(no)) continue;
+      seen.add(no);
+      rows.push({ no, basho: m[2], kasho: m[3], koji: m[4], suryo: null, tani: m[5], tanka: null });
+    }
+
+    return rows.sort((a, b) => a.no - b.no);
   };
 
   const buildExcel = (rows, templateB64) => {
@@ -118,10 +104,10 @@ export default function Home() {
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const tc = await page.getTextContent();
-        allText += tc.items.map(x => x.str).join(' ') + '\f';
+        allText += tc.items.map(x => x.str).join(' ') + ' ';
       }
       const rows = parseEstimateRows(allText);
-      if (!rows.length) throw new Error('テキスト取得結果: ' + allText.slice(0, 300));
+      if (!rows.length) throw new Error('見積データが抽出できませんでした');
       setRowCount(rows.length);
       const res = await fetch('/api/template');
       const { b64 } = await res.json();
