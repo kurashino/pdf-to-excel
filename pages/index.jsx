@@ -38,6 +38,7 @@ export default function Home() {
     const JA = '[\\u3000-\\u9FFF\\uFF00-\\uFFEF\\uFFA0-\\uFFDCA-Za-z0-9()（）・\\-\\/,，．.？?！!]+';
     const UNIT = '(?:式|㎡|ヶ|台|本|枚|ｹ|ケ)';
 
+    // 数量ありパターン
     const p1 = new RegExp(`\\b(\\d{1,2})\\s+(${JA})\\s+(${JA})\\s+(${JA}?)\\s+([\\d.]+)\\s*(${UNIT})`, 'g');
     let m;
     while ((m = p1.exec(flat)) !== null) {
@@ -51,6 +52,7 @@ export default function Home() {
       rows.push({ no, basho: m[2], kasho: m[3], koji: m[4], suryo: parseFloat(m[5]), tani: m[6], tanka });
     }
 
+    // 数量なしパターン
     const p2 = new RegExp(`\\b(\\d{1,2})\\s+(${JA})\\s+(${JA})\\s+(${JA}?)\\s*(${UNIT})`, 'g');
     while ((m = p2.exec(flat)) !== null) {
       const no = parseInt(m[1]);
@@ -66,12 +68,7 @@ export default function Home() {
     const buf = Uint8Array.from(atob(templateB64), c => c.charCodeAt(0));
     const wb = XLSX.read(buf, { type: 'array' });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    const headers = {};
-    for (let c = 0; c < 20; c++) {
-      const addr = XLSX.utils.encode_cell({ r: 6, c });
-      const cell = ws[addr];
-      if (cell && cell.v) headers[cell.v.toString().trim()] = XLSX.utils.encode_col(c);
-    }
+
     const set = (col, row, val) => {
       if (!col || val === null || val === undefined || val === '') return;
       const addr = col + row;
@@ -79,15 +76,17 @@ export default function Home() {
       ws[addr].v = val;
       ws[addr].t = typeof val === 'number' ? 'n' : 's';
     };
+
     for (const r of rows) {
       const row = r.no + 7;
-      set(headers['場所'], row, r.basho);
-      set(headers['箇所'], row, r.kasho);
-      set(headers['工事項目'], row, r.koji);
-      if (r.suryo !== null) set(headers['数量'], row, r.suryo);
-      if (r.tani) set(headers['単位'], row, r.tani);
-      if (r.tanka !== null) set(headers['単価'], row, r.tanka);
+      set('B', row, r.basho);
+      set('C', row, r.kasho);
+      set('D', row, r.koji);
+      if (r.suryo !== null) set('M', row, r.suryo);
+      if (r.tani) set('N', row, r.tani);
+      if (r.tanka !== null) set('O', row, r.tanka);
     }
+
     return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   };
 
