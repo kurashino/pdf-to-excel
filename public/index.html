@@ -94,8 +94,7 @@ function resetApp(){
 }
 function parseRowsByLine(text){
   var rows=[],seen={};
-  var lines=text.split("
-").map(function(l){return l.trim();}).filter(function(l){return l.length>0;});
+  var lines=text.split("\n").map(function(l){return l.trim();}).filter(function(l){return l.length>0;});
   var start=0;
   for(var i=0;i<lines.length;i++){if(isInt(lines[i])&&parseInt(lines[i])===1){start=i;break;}}
   var i=start;
