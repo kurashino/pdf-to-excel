@@ -36,29 +36,59 @@ export default function Home() {
     const seen = new Set();
     const flat = text.replace(/\s+/g, ' ').trim();
 
-    // ひらがな・カタカナ・漢字・半角カタカナ・英数字・記号すべてカバー
-    const JA = '[\\u3000-\\u9FFF\\uF900-\\uFAFF\\uFF00-\\uFFEFA-Za-z0-9()\\uff08\\uff09\\uff65\\u30fb\\-\\/,\\uff0c\\u3002.\\uff1f!\\u3001\\u300c\\u300d]+';
-    const UNIT = '(?:式|㎡|ヶ|ヵ|台|本|枚|ｹ|ケ|組|回)';
+    // トークン単位で分割して行を再構築
+    const tokens = flat.split(' ').filter(t => t.length > 0);
+    const UNIT_SET = new Set(['式','㎡','ヶ','ヵ','台','本','枚','ｹ','ケ','組','回']);
+    const NUM_RE = /^[\d.]+$/;
+    const NO_RE = /^\d{1,2}$/;
 
-    const p1 = new RegExp('\\b(\\d{1,2})\\s+(' + JA + ')\\s+(' + JA + ')\\s+(' + JA + ')\\s+([\\d.]+)\\s*(' + UNIT + ')', 'g');
-    let m;
-    while ((m = p1.exec(flat)) !== null) {
-      const no = parseInt(m[1]);
-      if (no < 1 || no > 100 || seen.has(no)) continue;
-      seen.add(no);
+    let i = 0;
+    while (i < tokens.length) {
+      // 行番号を探す
+      if (!NO_RE.test(tokens[i])) { i++; continue; }
+      const no = parseInt(tokens[i]);
+      if (no < 1 || no > 100 || seen.has(no)) { i++; continue; }
+
+      // 次のトークンから場所・箇所・工事項目・数量・単位を取得
+      // 単位の位置を探す（最大10トークン先まで）
+      let uIdx = -1;
+      for (let j = i + 1; j < Math.min(i + 12, tokens.length); j++) {
+        if (UNIT_SET.has(tokens[j])) { uIdx = j; break; }
+      }
+      if (uIdx === -1) { i++; continue; }
+
+      const between = tokens.slice(i + 1, uIdx);
+      if (between.length < 2) { i++; continue; }
+
+      let basho, kasho, koji, suryo = null;
+
+      // 単位直前が数字なら数量
+      if (NUM_RE.test(between[between.length - 1])) {
+        suryo = parseFloat(between[between.length - 1]);
+        const rest = between.slice(0, -1);
+        basho = rest[0] || '';
+        kasho = rest[1] || '';
+        koji = rest.slice(2).join('') || '';
+      } else {
+        basho = between[0] || '';
+        kasho = between[1] || '';
+        koji = between.slice(2).join('') || '';
+      }
+
+      if (!basho) { i++; continue; }
+
+      // 単価：単位の後の最初の数字
       let tanka = null;
-      const after = flat.slice(m.index + m[0].length, m.index + m[0].length + 40);
-      const tm = after.match(/^\s*([\d,]+)/);
-      if (tm) tanka = parseFloat(tm[1].replace(/,/g, ''));
-      rows.push({ no, basho: m[2], kasho: m[3], koji: m[4], suryo: parseFloat(m[5]), tani: m[6], tanka });
-    }
+      for (let j = uIdx + 1; j < Math.min(uIdx + 4, tokens.length); j++) {
+        if (/^[\d,]+$/.test(tokens[j])) {
+          tanka = parseFloat(tokens[j].replace(/,/g, ''));
+          break;
+        }
+      }
 
-    const p2 = new RegExp('\\b(\\d{1,2})\\s+(' + JA + ')\\s+(' + JA + ')\\s+(' + JA + ')\\s*(' + UNIT + ')', 'g');
-    while ((m = p2.exec(flat)) !== null) {
-      const no = parseInt(m[1]);
-      if (no < 1 || no > 100 || seen.has(no)) continue;
       seen.add(no);
-      rows.push({ no, basho: m[2], kasho: m[3], koji: m[4], suryo: null, tani: m[5], tanka: null });
+      rows.push({ no, basho, kasho, koji, suryo, tani: tokens[uIdx], tanka });
+      i = uIdx + 1;
     }
 
     return rows.sort((a, b) => a.no - b.no);
