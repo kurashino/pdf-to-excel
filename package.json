@@ -3,8 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "echo 'static site'",
-    "dev": "echo 'open public/index.html'",
-    "start": "echo 'static site'"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "14.2.3",
+    "react": "^18",
+    "react-dom": "^18",
+    "xlsx": "^0.18.5",
+    "formidable": "^3.5.1",
+    "pdf-parse": "^1.1.1"
   }
 }
