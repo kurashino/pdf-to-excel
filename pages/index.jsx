@@ -36,12 +36,11 @@ export default function Home() {
     const seen = new Set();
     const flat = text.replace(/\s+/g, ' ').trim();
 
-    // 日本語全般・半角カタカナ・英数字・記号すべてカバー
-    const JA = '[\\u3000-\\u9FFF\\uF900-\\uFAFF\\uFF00-\\uFFEFA-Za-z0-9()（）･・\\-\\/,，．.？?！!（）]+';
-    const UNIT = '(?:式|㎡|ｍ²|m²|ヶ|ヵ|台|本|枚|ｹ|ケ|組|回)';
+    // ひらがな・カタカナ・漢字・半角カタカナ・英数字・記号すべてカバー
+    const JA = '[\\u3000-\\u9FFF\\uF900-\\uFAFF\\uFF00-\\uFFEFA-Za-z0-9()\\uff08\\uff09\\uff65\\u30fb\\-\\/,\\uff0c\\u3002.\\uff1f!\\u3001\\u300c\\u300d]+';
+    const UNIT = '(?:式|㎡|ヶ|ヵ|台|本|枚|ｹ|ケ|組|回)';
 
-    // 数量ありパターン: 番号 場所 箇所 工事項目 数量 単位
-    const p1 = new RegExp(`\\b(\\d{1,2})\\s+(${JA})\\s+(${JA})\\s+(${JA})\\s+([\\d.]+)\\s*(${UNIT})`, 'g');
+    const p1 = new RegExp('\\b(\\d{1,2})\\s+(' + JA + ')\\s+(' + JA + ')\\s+(' + JA + ')\\s+([\\d.]+)\\s*(' + UNIT + ')', 'g');
     let m;
     while ((m = p1.exec(flat)) !== null) {
       const no = parseInt(m[1]);
@@ -54,8 +53,7 @@ export default function Home() {
       rows.push({ no, basho: m[2], kasho: m[3], koji: m[4], suryo: parseFloat(m[5]), tani: m[6], tanka });
     }
 
-    // 数量なしパターン: 番号 場所 箇所 工事項目 単位
-    const p2 = new RegExp(`\\b(\\d{1,2})\\s+(${JA})\\s+(${JA})\\s+(${JA})\\s*(${UNIT})`, 'g');
+    const p2 = new RegExp('\\b(\\d{1,2})\\s+(' + JA + ')\\s+(' + JA + ')\\s+(' + JA + ')\\s*(' + UNIT + ')', 'g');
     while ((m = p2.exec(flat)) !== null) {
       const no = parseInt(m[1]);
       if (no < 1 || no > 100 || seen.has(no)) continue;
