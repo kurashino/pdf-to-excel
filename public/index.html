@@ -195,8 +195,7 @@ document.getElementById("convert-btn").addEventListener("click",function(){
   document.getElementById("s1t").textContent="テキストを受け取りました";
   document.getElementById("s2t").textContent="解析中...";
   document.getElementById("s2").className="srow active";
-  var lc=(text.match(/
-/g)||[]).length;
+  var lc=(text.match(/\n/g)||[]).length;
   var rows=lc>5?parseRowsByLine(text):parseRowsFlat(text);
   if(!rows.length){showErr("見積データが抽出できませんでした");return;}
   document.getElementById("s2").className="srow done";
