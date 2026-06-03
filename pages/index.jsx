@@ -108,7 +108,7 @@ export default function Home() {
         allText += tc.items.map(x => x.str).join(' ') + ' ';
       }
       const rows = parseEstimateRows(allText);
-      if (!rows.length) throw new Error('見積データが抽出できませんでした');
+      if (!rows.length) throw new Error('テキスト: ' + allText.slice(0, 200));
       setRowCount(rows.length);
       setPreview(rows.slice(0, 10));
       const res = await fetch('/api/template');
