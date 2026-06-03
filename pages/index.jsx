@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
-import * as XLSX from 'xlsx';
 
 export default function Home() {
   const [state, setState] = useState('idle');
@@ -11,21 +10,28 @@ export default function Home() {
   const [dlName, setDlName] = useState('');
   const [preview, setPreview] = useState([]);
   const [dragging, setDragging] = useState(false);
+  const [rawText, setRawText] = useState('');
   const inputRef = useRef(null);
+  const xlsxRef = useRef(null);
 
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    script.onload = () => {
+    // pdf.js
+    const s1 = document.createElement('script');
+    s1.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s1.onload = () => {
       window.pdfjsLib.GlobalWorkerOptions.workerSrc =
         'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     };
-    document.head.appendChild(script);
+    document.head.appendChild(s1);
+    // xlsx
+    const s2 = document.createElement('script');
+    s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    document.head.appendChild(s2);
   }, []);
 
   const reset = () => {
     setState('idle'); setRowCount(0); setErrorMsg(''); setFileName('');
-    setPreview([]);
+    setPreview([]); setRawText('');
     if (dlUrl) URL.revokeObjectURL(dlUrl);
     setDlUrl(''); setDlName('');
     if (inputRef.current) inputRef.current.value = '';
@@ -34,25 +40,20 @@ export default function Home() {
   const parseEstimateRows = (text) => {
     const rows = [];
     const seen = new Set();
-    const flat = text.replace(/\s+/g, ' ').trim();
-
-    // トークン単位で分割して行を再構築
-    const tokens = flat.split(' ').filter(t => t.length > 0);
+    const tokens = text.replace(/\s+/g, ' ').trim().split(' ').filter(t => t.length > 0);
     const UNIT_SET = new Set(['式','㎡','ヶ','ヵ','台','本','枚','ｹ','ケ','組','回']);
     const NUM_RE = /^[\d.]+$/;
-    const NO_RE = /^\d{1,2}$/;
 
     let i = 0;
     while (i < tokens.length) {
-      // 行番号を探す
-      if (!NO_RE.test(tokens[i])) { i++; continue; }
       const no = parseInt(tokens[i]);
-      if (no < 1 || no > 100 || seen.has(no)) { i++; continue; }
+      if (isNaN(no) || no < 1 || no > 100 || seen.has(no)) { i++; continue; }
+      // tokens[i]が純粋な数字かチェック
+      if (!/^\d{1,2}$/.test(tokens[i])) { i++; continue; }
 
-      // 次のトークンから場所・箇所・工事項目・数量・単位を取得
-      // 単位の位置を探す（最大10トークン先まで）
+      // 単位を探す（最大15トークン先まで）
       let uIdx = -1;
-      for (let j = i + 1; j < Math.min(i + 12, tokens.length); j++) {
+      for (let j = i + 1; j < Math.min(i + 15, tokens.length); j++) {
         if (UNIT_SET.has(tokens[j])) { uIdx = j; break; }
       }
       if (uIdx === -1) { i++; continue; }
@@ -61,25 +62,21 @@ export default function Home() {
       if (between.length < 2) { i++; continue; }
 
       let basho, kasho, koji, suryo = null;
-
-      // 単位直前が数字なら数量
       if (NUM_RE.test(between[between.length - 1])) {
         suryo = parseFloat(between[between.length - 1]);
-        const rest = between.slice(0, -1);
-        basho = rest[0] || '';
-        kasho = rest[1] || '';
-        koji = rest.slice(2).join('') || '';
+        basho = between[0] || '';
+        kasho = between[1] || '';
+        koji = between.slice(2, -1).join('') || '';
       } else {
         basho = between[0] || '';
         kasho = between[1] || '';
         koji = between.slice(2).join('') || '';
       }
 
-      if (!basho) { i++; continue; }
+      if (!basho || basho.length < 1) { i++; continue; }
 
-      // 単価：単位の後の最初の数字
       let tanka = null;
-      for (let j = uIdx + 1; j < Math.min(uIdx + 4, tokens.length); j++) {
+      for (let j = uIdx + 1; j < Math.min(uIdx + 5, tokens.length); j++) {
         if (/^[\d,]+$/.test(tokens[j])) {
           tanka = parseFloat(tokens[j].replace(/,/g, ''));
           break;
@@ -94,29 +91,6 @@ export default function Home() {
     return rows.sort((a, b) => a.no - b.no);
   };
 
-  const buildExcel = (rows, templateB64) => {
-    const buf = Uint8Array.from(atob(templateB64), c => c.charCodeAt(0));
-    const wb = XLSX.read(buf, { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const set = (col, row, val) => {
-      if (!col || val === null || val === undefined || val === '') return;
-      const addr = col + row;
-      if (!ws[addr]) ws[addr] = {};
-      ws[addr].v = val;
-      ws[addr].t = typeof val === 'number' ? 'n' : 's';
-    };
-    for (const r of rows) {
-      const row = r.no + 7;
-      set('B', row, r.basho);
-      set('C', row, r.kasho);
-      set('D', row, r.koji);
-      if (r.suryo !== null) set('M', row, r.suryo);
-      if (r.tani) set('N', row, r.tani);
-      if (r.tanka !== null) set('O', row, r.tanka);
-    }
-    return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  };
-
   const process = async (file) => {
     if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
       setErrorMsg('PDFファイルを選択してください'); setState('error'); return;
@@ -125,7 +99,7 @@ export default function Home() {
     setState('uploading');
     try {
       const pdfjsLib = window.pdfjsLib;
-      if (!pdfjsLib) throw new Error('PDF読み込みライブラリが準備中です。少し待ってから再試行してください。');
+      if (!pdfjsLib) throw new Error('ライブラリ準備中です。3秒後に再試行してください。');
       const ab = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
       let allText = '';
@@ -134,13 +108,33 @@ export default function Home() {
         const tc = await page.getTextContent();
         allText += tc.items.map(x => x.str).join(' ') + ' ';
       }
+      setRawText(allText.slice(0, 300));
       const rows = parseEstimateRows(allText);
-      if (!rows.length) throw new Error(JSON.stringify(allText.slice(0,500)));
+      if (!rows.length) throw new Error('抽出0件。テキスト: ' + allText.slice(0, 200));
       setRowCount(rows.length);
       setPreview(rows.slice(0, 10));
+
+      const XLSX = window.XLSX;
+      if (!XLSX) throw new Error('XLSXライブラリ準備中です。再試行してください。');
       const res = await fetch('/api/template');
       const { b64 } = await res.json();
-      const xlsxData = buildExcel(rows, b64);
+      const buf = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const set = (col, row, val) => {
+        if (!col || val === null || val === undefined || val === '') return;
+        const addr = col + row;
+        if (!ws[addr]) ws[addr] = {};
+        ws[addr].v = val; ws[addr].t = typeof val === 'number' ? 'n' : 's';
+      };
+      for (const r of rows) {
+        const row = r.no + 7;
+        set('B', row, r.basho); set('C', row, r.kasho); set('D', row, r.koji);
+        if (r.suryo !== null) set('M', row, r.suryo);
+        if (r.tani) set('N', row, r.tani);
+        if (r.tanka !== null) set('O', row, r.tanka);
+      }
+      const xlsxData = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       const blob = new Blob([xlsxData], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       setDlUrl(URL.createObjectURL(blob));
       setDlName(file.name.replace('.pdf', '') + '_変換.xlsx');
@@ -175,7 +169,7 @@ export default function Home() {
         .dl-btn{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:1.25rem;width:100%;padding:.85rem;background:#1a6fd4;color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer;text-decoration:none}
         .dl-btn:hover{background:#145bb0}
         .reset{display:block;margin:.75rem auto 0;background:none;border:none;color:#aaa;font-size:.82rem;cursor:pointer}
-        .err{margin-top:1rem;background:#fff5f5;border:1px solid #fcc;border-radius:10px;padding:.85rem 1rem;color:#c0392b;font-size:.88rem}
+        .err{margin-top:1rem;background:#fff5f5;border:1px solid #fcc;border-radius:10px;padding:.85rem 1rem;color:#c0392b;font-size:.88rem;word-break:break-all}
       `}</style>
       <div className="card">
         <p style={{fontSize:'1.25rem',fontWeight:700,marginBottom:'.25rem'}}>見積PDF → エクセル変換</p>
@@ -206,17 +200,13 @@ export default function Home() {
             <p style={{fontSize:'12px',color:'#888',marginTop:'1rem',marginBottom:'4px'}}>抽出データプレビュー（先頭10件）</p>
             <div style={{overflowX:'auto'}}>
               <table className="preview">
-                <thead><tr>
-                  <th>No</th><th>場所</th><th>箇所</th><th>工事項目</th><th>数量</th><th>単位</th><th>単価</th>
-                </tr></thead>
-                <tbody>
-                  {preview.map(r => (
-                    <tr key={r.no}>
-                      <td>{r.no}</td><td>{r.basho}</td><td>{r.kasho}</td><td>{r.koji}</td>
-                      <td>{r.suryo ?? ''}</td><td>{r.tani}</td><td>{r.tanka != null ? r.tanka.toLocaleString() : ''}</td>
-                    </tr>
-                  ))}
-                </tbody>
+                <thead><tr><th>No</th><th>場所</th><th>箇所</th><th>工事項目</th><th>数量</th><th>単位</th><th>単価</th></tr></thead>
+                <tbody>{preview.map(r=>(
+                  <tr key={r.no}>
+                    <td>{r.no}</td><td>{r.basho}</td><td>{r.kasho}</td><td>{r.koji}</td>
+                    <td>{r.suryo??''}</td><td>{r.tani}</td><td>{r.tanka!=null?r.tanka.toLocaleString():''}</td>
+                  </tr>
+                ))}</tbody>
               </table>
             </div>
           </>
