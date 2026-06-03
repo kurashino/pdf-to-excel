@@ -35,25 +35,27 @@ export default function Home() {
     const rows = [];
     const seen = new Set();
     const flat = text.replace(/\s+/g, ' ').trim();
-    const JA = '[\\u3000-\\u9FFF\\uFF00-\\uFFEF\\uFFA0-\\uFFDCA-Za-z0-9()（）・\\-\\/,，．.？?！!]+';
-    const UNIT = '(?:式|㎡|ヶ|台|本|枚|ｹ|ケ)';
 
-    // 数量ありパターン
-    const p1 = new RegExp(`\\b(\\d{1,2})\\s+(${JA})\\s+(${JA})\\s+(${JA}?)\\s+([\\d.]+)\\s*(${UNIT})`, 'g');
+    // 日本語全般・半角カタカナ・英数字・記号すべてカバー
+    const JA = '[\\u3000-\\u9FFF\\uF900-\\uFAFF\\uFF00-\\uFFEFA-Za-z0-9()（）･・\\-\\/,，．.？?！!（）]+';
+    const UNIT = '(?:式|㎡|ｍ²|m²|ヶ|ヵ|台|本|枚|ｹ|ケ|組|回)';
+
+    // 数量ありパターン: 番号 場所 箇所 工事項目 数量 単位
+    const p1 = new RegExp(`\\b(\\d{1,2})\\s+(${JA})\\s+(${JA})\\s+(${JA})\\s+([\\d.]+)\\s*(${UNIT})`, 'g');
     let m;
     while ((m = p1.exec(flat)) !== null) {
       const no = parseInt(m[1]);
       if (no < 1 || no > 100 || seen.has(no)) continue;
       seen.add(no);
       let tanka = null;
-      const after = flat.slice(m.index + m[0].length, m.index + m[0].length + 30);
+      const after = flat.slice(m.index + m[0].length, m.index + m[0].length + 40);
       const tm = after.match(/^\s*([\d,]+)/);
       if (tm) tanka = parseFloat(tm[1].replace(/,/g, ''));
       rows.push({ no, basho: m[2], kasho: m[3], koji: m[4], suryo: parseFloat(m[5]), tani: m[6], tanka });
     }
 
-    // 数量なしパターン
-    const p2 = new RegExp(`\\b(\\d{1,2})\\s+(${JA})\\s+(${JA})\\s+(${JA}?)\\s*(${UNIT})`, 'g');
+    // 数量なしパターン: 番号 場所 箇所 工事項目 単位
+    const p2 = new RegExp(`\\b(\\d{1,2})\\s+(${JA})\\s+(${JA})\\s+(${JA})\\s*(${UNIT})`, 'g');
     while ((m = p2.exec(flat)) !== null) {
       const no = parseInt(m[1]);
       if (no < 1 || no > 100 || seen.has(no)) continue;
@@ -68,7 +70,6 @@ export default function Home() {
     const buf = Uint8Array.from(atob(templateB64), c => c.charCodeAt(0));
     const wb = XLSX.read(buf, { type: 'array' });
     const ws = wb.Sheets[wb.SheetNames[0]];
-
     const set = (col, row, val) => {
       if (!col || val === null || val === undefined || val === '') return;
       const addr = col + row;
@@ -76,7 +77,6 @@ export default function Home() {
       ws[addr].v = val;
       ws[addr].t = typeof val === 'number' ? 'n' : 's';
     };
-
     for (const r of rows) {
       const row = r.no + 7;
       set('B', row, r.basho);
@@ -86,7 +86,6 @@ export default function Home() {
       if (r.tani) set('N', row, r.tani);
       if (r.tanka !== null) set('O', row, r.tanka);
     }
-
     return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   };
 
@@ -108,7 +107,7 @@ export default function Home() {
         allText += tc.items.map(x => x.str).join(' ') + ' ';
       }
       const rows = parseEstimateRows(allText);
-      if (!rows.length) throw new Error('テキスト: ' + allText.slice(0, 200));
+      if (!rows.length) throw new Error('見積データが抽出できませんでした');
       setRowCount(rows.length);
       setPreview(rows.slice(0, 10));
       const res = await fetch('/api/template');
@@ -153,7 +152,6 @@ export default function Home() {
       <div className="card">
         <p style={{fontSize:'1.25rem',fontWeight:700,marginBottom:'.25rem'}}>見積PDF → エクセル変換</p>
         <p style={{fontSize:'.85rem',color:'#888',marginBottom:'1.75rem'}}>PDFをアップロードするだけでＡＡ原紙フォーマットに自動変換</p>
-
         {state === 'idle' && (
           <div className={`drop${dragging?' over':''}`}
             onDragOver={e=>{e.preventDefault();setDragging(true)}}
@@ -166,7 +164,6 @@ export default function Home() {
             <p style={{fontSize:'.82rem',color:'#aaa',marginTop:'.25rem'}}>またはクリックして選択</p>
           </div>
         )}
-
         {(state==='uploading'||state==='done') && (
           <div className="status">
             <div className="srow done"><div className="dot">✓</div><span>{fileName} を読み込みました</span></div>
@@ -176,7 +173,6 @@ export default function Home() {
             </div>
           </div>
         )}
-
         {state==='done' && preview.length > 0 && (
           <>
             <p style={{fontSize:'12px',color:'#888',marginTop:'1rem',marginBottom:'4px'}}>抽出データプレビュー（先頭10件）</p>
@@ -188,13 +184,8 @@ export default function Home() {
                 <tbody>
                   {preview.map(r => (
                     <tr key={r.no}>
-                      <td>{r.no}</td>
-                      <td>{r.basho}</td>
-                      <td>{r.kasho}</td>
-                      <td>{r.koji}</td>
-                      <td>{r.suryo ?? ''}</td>
-                      <td>{r.tani}</td>
-                      <td>{r.tanka != null ? r.tanka.toLocaleString() : ''}</td>
+                      <td>{r.no}</td><td>{r.basho}</td><td>{r.kasho}</td><td>{r.koji}</td>
+                      <td>{r.suryo ?? ''}</td><td>{r.tani}</td><td>{r.tanka != null ? r.tanka.toLocaleString() : ''}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -202,14 +193,12 @@ export default function Home() {
             </div>
           </>
         )}
-
         {state==='done' && dlUrl && (
           <>
             <a className="dl-btn" href={dlUrl} download={dlName}>⬇ エクセルをダウンロード</a>
             <button className="reset" onClick={reset}>別のPDFを変換する</button>
           </>
         )}
-
         {state==='error' && (
           <>
             <div className="err">⚠ {errorMsg}</div>
