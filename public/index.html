@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>見積 → エクセル変換</title>
+<title>見積 エクセル変換</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Hiragino Sans","Meiryo",sans-serif;background:#f5f5f0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem}
+body{font-family:sans-serif;background:#f5f5f0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem}
 .card{background:#fff;border-radius:16px;box-shadow:0 2px 24px rgba(0,0,0,.08);padding:2.5rem 2rem;width:100%;max-width:640px}
 .tabs{display:flex;gap:8px;margin-bottom:1.5rem}
 .tab{flex:1;padding:.6rem;border:1.5px solid #d0d0d0;border-radius:8px;background:#fafaf8;cursor:pointer;font-size:.9rem;font-weight:500;text-align:center;color:#555}
@@ -34,60 +34,48 @@ tr:nth-child(even) td{background:#fafaf8}
 </head>
 <body>
 <div class="card">
-  <p style="font-size:1.25rem;font-weight:700;margin-bottom:.25rem">見積 &rarr; エクセル変換</p>
-  <p style="font-size:.85rem;color:#888;margin-bottom:1.25rem">AA原紙フォーマットに自動変換</p>
+  <p style="font-size:1.25rem;font-weight:700;margin-bottom:.25rem">&#35211;&#31295; &#12456;&#12463;&#12475;&#12523;&#22793;&#25563;</p>
+  <p style="font-size:.85rem;color:#888;margin-bottom:1.25rem">AA&#21407;&#32025;&#12501;&#12457;&#12540;&#12510;&#12483;&#12488;&#12395;&#33258;&#21205;&#22793;&#25563;</p>
   <div class="tabs">
-    <div class="tab active" id="tab-pdf" onclick="switchTab('pdf')">PDF アップロード</div>
-    <div class="tab" id="tab-text" onclick="switchTab('text')">テキスト貼り付け</div>
+    <div class="tab active" id="tab-pdf">PDF &#12450;&#12483;&#12503;&#12525;&#12540;&#12489;</div>
+    <div class="tab" id="tab-text">&#12486;&#12461;&#12473;&#12488;&#36035;&#12426;&#20184;&#12369;</div>
   </div>
   <div id="panel-pdf">
-    <div class="drop" id="drop" onclick="document.getElementById('file-input').click()">
+    <div class="drop" id="drop">
       <input type="file" id="file-input" accept=".pdf">
       <div style="font-size:2.5rem;margin-bottom:.75rem">&#128196;</div>
-      <p style="font-size:1rem;font-weight:600">PDFをここにドロップ</p>
-      <p style="font-size:.82rem;color:#aaa;margin-top:.25rem">またはクリックして選択</p>
+      <p style="font-size:1rem;font-weight:600">PDF&#12434;&#12371;&#12371;&#12395;&#12489;&#12525;&#12483;&#12503;</p>
+      <p style="font-size:.82rem;color:#aaa;margin-top:.25rem">&#12414;&#12383;&#12399;&#12463;&#12522;&#12483;&#12463;&#12375;&#12390;&#36984;&#25246;</p>
     </div>
   </div>
   <div id="panel-text" style="display:none">
-    <textarea class="paste-area" id="paste-input" placeholder="スマホのOCRでコピーしたテキストをそのまま貼り付けてください。
-
-1
-玄関廊下
-壁
-クロスクリーニング
-1.0
-2000
-2
-洗面所
-..."></textarea>
-    <button class="convert-btn" id="convert-btn">エクセルに変換</button>
+    <textarea class="paste-area" id="paste-input" placeholder="&#12473;&#12510;&#12507;&#12398;OCR&#12391;&#12467;&#12500;&#12540;&#12375;&#12383;&#12486;&#12461;&#12473;&#12488;&#12434;&#36035;&#12426;&#20184;&#12369;"></textarea>
+    <button class="convert-btn" id="convert-btn">&#12456;&#12463;&#12475;&#12523;&#12395;&#22793;&#25563;</button>
   </div>
   <div class="status" id="status">
-    <div class="srow done"><div class="dot">&#10003;</div><span id="s1t"></span></div>
-    <div class="srow active" id="s2"><div class="dot" id="s2d">&#9679;</div><span id="s2t">処理中...</span></div>
+    <div class="srow done"><div class="dot">v</div><span id="s1t"></span></div>
+    <div class="srow active" id="s2"><div class="dot" id="s2d">o</div><span id="s2t">&#20966;&#29702;&#20013;...</span></div>
   </div>
   <div class="preview-wrap" id="preview-wrap">
-    <p style="font-size:12px;color:#888;margin-bottom:4px">抽出データプレビュー（先頭10件）</p>
-    <table><thead><tr><th>No</th><th>場所</th><th>箇所</th><th>工事項目</th><th>数量</th><th>単位</th><th>単価</th></tr></thead>
+    <p style="font-size:12px;color:#888;margin-bottom:4px">&#25277;&#20986;&#12487;&#12540;&#12479;&#12503;&#12524;&#12499;&#12517;&#12540;</p>
+    <table><thead><tr><th>No</th><th>&#22580;&#25152;</th><th>&#31665;&#25152;</th><th>&#24037;&#20107;&#39178;&#30446;</th><th>&#25968;&#37327;</th><th>&#21333;&#20301;</th><th>&#21333;&#20385;</th></tr></thead>
     <tbody id="preview-body"></tbody></table>
   </div>
   <div id="dl-area">
-    <a class="dl-btn" id="dl-btn">&#11015; エクセルをダウンロード</a>
-    <button class="reset-btn" id="reset-btn">別の見積を変換する</button>
+    <a class="dl-btn" id="dl-btn">&#12456;&#12463;&#12475;&#12523;&#12434;&#12480;&#12454;&#12531;&#12525;&#12540;&#12489;</a>
+    <button class="reset-btn" id="reset-btn">&#21029;&#12398;&#35211;&#31295;&#12434;&#22793;&#25563;&#12377;&#12427;</button>
   </div>
   <div class="err" id="err"></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-
-var UNITS = ["式","㎡","ヶ","ヵ","台","本","枚","ｹ","ケ","組","回"];
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+var UNITS=["式","㎡","ヶ","ヵ","台","本","枚","ｹ","ケ","組","回"];
 function isNum(s){return /^[0-9.]+$/.test(s);}
 function isInt(s){return /^[0-9]{1,2}$/.test(s);}
 function isUnit(s){return UNITS.indexOf(s)>=0;}
 function isMoney(s){return /^[0-9,]+$/.test(s);}
-
 function switchTab(tab){
   document.getElementById("tab-pdf").className=tab==="pdf"?"tab active":"tab";
   document.getElementById("tab-text").className=tab==="text"?"tab active":"tab";
@@ -95,7 +83,6 @@ function switchTab(tab){
   document.getElementById("panel-text").style.display=tab==="text"?"":"none";
   resetApp();
 }
-
 function resetApp(){
   document.getElementById("status").style.display="none";
   document.getElementById("preview-wrap").style.display="none";
@@ -105,7 +92,6 @@ function resetApp(){
   var d=document.getElementById("drop");if(d)d.style.display="";
   var fi=document.getElementById("file-input");if(fi)fi.value="";
 }
-
 function parseRowsByLine(text){
   var rows=[],seen={};
   var lines=text.split("
@@ -136,7 +122,6 @@ function parseRowsByLine(text){
   }
   return rows.sort(function(a,b){return a.no-b.no;});
 }
-
 function parseRowsFlat(text){
   var rows=[],seen={};
   var idx=text.indexOf("工事項目");
@@ -164,12 +149,10 @@ function parseRowsFlat(text){
   }
   return rows.sort(function(a,b){return a.no-b.no;});
 }
-
 async function buildAndDownload(rows,fname){
   var res=await fetch("/api/template");
   var json=await res.json();
-  var b64=json.b64;
-  var buf=Uint8Array.from(atob(b64),function(c){return c.charCodeAt(0);});
+  var buf=Uint8Array.from(atob(json.b64),function(c){return c.charCodeAt(0);});
   var wb=XLSX.read(buf,{type:"array"});
   var ws=wb.Sheets[wb.SheetNames[0]];
   function sc(col,row,val){
@@ -191,7 +174,6 @@ async function buildAndDownload(rows,fname){
   btn.href=url;btn.download=fname+"_変換.xlsx";
   document.getElementById("dl-area").style.display="block";
 }
-
 function showPreview(rows){
   var tbody=document.getElementById("preview-body");
   for(var i=0;i<Math.min(rows.length,10);i++){
@@ -201,12 +183,12 @@ function showPreview(rows){
   }
   document.getElementById("preview-wrap").style.display="block";
 }
-
 function showErr(msg){
   document.getElementById("status").style.display="none";
   var e=document.getElementById("err");e.textContent="⚠ "+msg;e.style.display="block";
 }
-
+document.getElementById("tab-pdf").addEventListener("click",function(){switchTab("pdf");});
+document.getElementById("tab-text").addEventListener("click",function(){switchTab("text");});
 document.getElementById("convert-btn").addEventListener("click",function(){
   var text=document.getElementById("paste-input").value.trim();
   if(!text){showErr("テキストを貼り付けてください");return;}
@@ -219,24 +201,20 @@ document.getElementById("convert-btn").addEventListener("click",function(){
   var rows=lc>5?parseRowsByLine(text):parseRowsFlat(text);
   if(!rows.length){showErr("見積データが抽出できませんでした");return;}
   document.getElementById("s2").className="srow done";
-  document.getElementById("s2d").textContent="✓";
+  document.getElementById("s2d").textContent="v";
   document.getElementById("s2t").textContent=rows.length+"件抽出しました";
   showPreview(rows);
   buildAndDownload(rows,"見積書");
 });
-
 document.getElementById("reset-btn").addEventListener("click",resetApp);
-
-var drop=document.getElementById("drop");
-var fi=document.getElementById("file-input");
-drop.addEventListener("dragover",function(e){e.preventDefault();drop.classList.add("over");});
-drop.addEventListener("dragleave",function(){drop.classList.remove("over");});
-drop.addEventListener("drop",function(e){e.preventDefault();drop.classList.remove("over");var f=e.dataTransfer.files[0];if(f)processFile(f);});
-fi.addEventListener("change",function(e){if(e.target.files[0])processFile(e.target.files[0]);});
-
+document.getElementById("drop").addEventListener("click",function(){document.getElementById("file-input").click();});
+document.getElementById("drop").addEventListener("dragover",function(e){e.preventDefault();this.classList.add("over");});
+document.getElementById("drop").addEventListener("dragleave",function(){this.classList.remove("over");});
+document.getElementById("drop").addEventListener("drop",function(e){e.preventDefault();this.classList.remove("over");var f=e.dataTransfer.files[0];if(f)processFile(f);});
+document.getElementById("file-input").addEventListener("change",function(e){if(e.target.files[0])processFile(e.target.files[0]);});
 async function processFile(file){
   if(!file.name.toLowerCase().endsWith(".pdf")){showErr("PDFを選択してください");return;}
-  drop.style.display="none";
+  document.getElementById("drop").style.display="none";
   document.getElementById("status").style.display="block";
   document.getElementById("s1t").textContent=file.name+" を読み込みました";
   document.getElementById("s2").className="srow active";
@@ -254,11 +232,11 @@ async function processFile(file){
     var rows=parseRowsFlat(allText);
     if(!rows.length)throw new Error("見積データが抽出できませんでした");
     document.getElementById("s2").className="srow done";
-    document.getElementById("s2d").textContent="✓";
+    document.getElementById("s2d").textContent="v";
     document.getElementById("s2t").textContent=rows.length+"件抽出しました";
     showPreview(rows);
     buildAndDownload(rows,file.name.replace(".pdf",""));
-  }catch(e){drop.style.display="";showErr(e.message);}
+  }catch(e){document.getElementById("drop").style.display="";showErr(e.message);}
 }
 </script>
 </body>
